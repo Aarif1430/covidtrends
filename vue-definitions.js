@@ -323,17 +323,17 @@ window.app = new Vue({
       if (selectedRegion != 'US') {
         let url;
         if (selectedData == 'Confirmed Cases') {
-          url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv';
-        } else if (selectedData == 'Reported Deaths') {
-          url = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv';
+          url = 'https://api.covid19india.org/states_daily.json';
+        } else if (selectedData == 'Deceased Cases') {
+          url = 'https://api.covid19india.org/states_daily.json';
         } else {
           return;
         }
-        Plotly.d3.csv(url, (data) => this.processData(data, selectedRegion, updateSelectedCountries));
+        Plotly.d3.json(url, (data) => this.processData(data, selectedData, updateSelectedCountries));
       } else { // selectedRegion == 'US'
-        const type = (selectedData == 'Reported Deaths') ? 'deaths' : 'cases';
+        const type = (selectedData == 'Deceased Cases') ? 'deaths' : 'cases';
         const url = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv';
-        Plotly.d3.csv(url, (data) => this.processData(this.preprocessNYTData(data, type), selectedRegion, updateSelectedCountries));
+        Plotly.d3.json(url, (data) => this.processData(data, selectedRegion, updateSelectedCountries));
       }
     },
 
@@ -377,74 +377,89 @@ window.app = new Vue({
       return data.filter(e => e['Province/State'] == selectedRegion)
         .map(e => Object.assign({}, e, {region: e['Province/State']}));
     },
+    getVisibleStates() {
+    return [{name  : 'Andaman and Nicobar', checked: false, key: 'an'},
+            {name  : 'Andhra Pradesh', checked: false, key: 'ap'},
+            {name  : 'Arunachal Pradesh', checked: false, key: 'as'},
+            {name  : 'Assam', checked: false, key: 'as'},
+            {name  : 'Bihar', checked: false, key: 'br'},
+            {name  : 'Chandigarh', checked: false, key: 'ch'},
+            {name  : 'Chhattisgarh', checked: false, key: 'ct'},
+            {name  : 'Dadra and Nagar Haveli', checked: false, key: 'dn'},
+            {name  : 'Daman and Diu', checked: false, key: 'dd'},
+            {name  : 'Delhi', checked: false, key: 'dl'},
+            {name  : 'Goa', checked: false, key: 'ga'},
+            {name  : 'Gujarat', checked: false, key: 'gj'},
+            {name  : 'Haryana', checked: false, key: 'hr'},
+            {name  : 'Himachal Pradesh', checked: false, key: 'hp'},
+            {name  : 'Jammu and Kashmir', checked: false, key: 'jk'},
+            {name  : 'Jharkhand', checked: false, key: 'jh'},
+            {name  : 'Karnataka', checked: false, key: 'ka'},
+            {name  : 'Kerala', checked: false, key: 'kl'},
+            {name  : 'Lakshadweep', checked: false, key: 'ld'},
+            {name  : 'Madhya Pradesh', checked: false, key: 'mp'},
+            {name  : 'Maharashtra', checked: true, key: 'mh'},
+            {name  : 'Manipur', checked: false, key: 'mn'},
+            {name  : 'Meghalaya', checked: false, key: 'ml'},
+            {name  : 'Mizoram', checked: false, key: 'mz'},
+            {name  : 'Nagaland', checked: false, key: 'nl'},
+            {name  : 'Odisha', checked: false, key: 'or'},
+            {name  : 'Puducherry', checked: false, key: 'py'},
+            {name  : 'Punjab', checked: false, key: 'pb'},
+            {name  : 'Rajasthan', checked: false, key: 'rj'},
+            {name  : 'Sikkim', checked: false, key: 'sk'},
+            {name  : 'Tamil Nadu', checked: false, key: 'tn'},
+            {name  : 'Telangana', checked: false, key: 'tg'},
+            {name  : 'Tripura', checked: false, key: 'tr'},
+            {name  : 'Uttar Pradesh', checked: false, key: 'up'},
+            {name  : 'Uttarakhand', checked: false, key: 'ut'},
+            {name  : 'West Bengal', checked: false, key: 'wb'}];
+  },
 
-    processData(data, selectedRegion, updateSelectedCountries) {
-      let dates = Object.keys(data[0]).slice(4);
+    processData(data, selectedData, updateSelectedCountries) {
+      let selectData = selectedData.split(' ')[0];
+      let rawData = data['states_daily'];
+      let countries = [];
+      let dates = [];
+      let statesKeys = [];
+      let confirmedCases = [];
+      let lastWeekConfirmedCases = [];
+
+      this.getVisibleStates().forEach(states => {
+        statesKeys[states.key] = states.name;
+      });
+      rawData.forEach((d) => { if (d.status === selectData){ dates.push(d.date); }});
       this.dates = dates;
       this.day = this.dates.length;
 
       let regionsToPullToCountryLevel = ['Hong Kong', 'Macau'];
 
-      let grouped;
-
-      if (selectedRegion == 'World') {
-        grouped = this.groupByCountry(data, dates, regionsToPullToCountryLevel);
-
-        // pull Hong Kong and Macau to Country level
-        for (let region of regionsToPullToCountryLevel) {
-          let country = this.convertStateToCountry(data, dates, region);
-          if (country.length === 1) {
-            grouped = grouped.concat(country);
-          }
-        }
-
-      } else {
-        grouped = this.filterByCountry(data, dates, selectedRegion)
-          .filter(e => !regionsToPullToCountryLevel.includes(e.region)); // also filter our Hong Kong and Macau as subregions of Mainland China
-      }
-
-      let exclusions = ['Cruise Ship', 'Diamond Princess'];
-
-      let renames = {
-        'Taiwan*': 'Taiwan',
-        'Korea, South': 'South Korea',
-        'China': 'China (Mainland)'
-      };
-
       let covidData = [];
-      for (let row of grouped) {
 
-        if (!exclusions.includes(row.region)) {
-          const arr = [];
-          for (let date of dates) {
-            arr.push(row[date]);
-          }
-          let slope = arr.map((e, i, a) => e - a[i - this.lookbackTime]);
-          let region = row.region;
-
-          if (Object.keys(renames).includes(region)) {
-            region = renames[region];
-          }
-
-          const cases = arr.map(e => e >= this.minCasesInCountry ? e : NaN);
-          covidData.push({
-            country: region,
-            cases,
-            slope: slope.map((e, i) => arr[i] >= this.minCasesInCountry ? e : NaN),
-            maxCases: this.myMax(...cases)
-          });
-
-        }
-      }
+      Object.keys(statesKeys).forEach((key) => {
+      rawData.forEach((d) => {
+        if (d.status === selectData){
+          confirmedCases.push(d[key]);
+        }});
+      confirmedCases = confirmedCases.map(Number);
+      confirmedCases = confirmedCases.reduce((r, a) => { r.push((r.length && r[r.length - 1] || 0) + a); return r; }, []);
+      lastWeekConfirmedCases = confirmedCases.map((e, i, a) => e - a[i - 7]);
+      covidData.push({country: statesKeys[key], date: dates, cases: confirmedCases.map(e => e >= 5 ? e : NaN),
+        slope: lastWeekConfirmedCases.map((e, i) => confirmedCases[i] >= 5 ? e : NaN),
+        maxCases: this.myMax(...confirmedCases)
+      });
+      confirmedCases = [];
+      lastWeekConfirmedCases = [];
+      });
+      
 
       this.covidData = covidData.filter(e => e.maxCases > this.minCasesInCountry);
-      this.countries = this.covidData.map(e => e.country).sort();
+      this.getVisibleStates().forEach(states => {
+        this.countries.push(states.name);
+      });
       this.visibleCountries = this.countries;
-      const topCountries = this.covidData.sort((a, b) => b.maxCases - a.maxCases).slice(0, 9).map(e => e.country);
-      const notableCountries = ['China (Mainland)', 'India', 'US', // Top 3 by population
-        'South Korea', 'Japan', 'Taiwan', 'Singapore', // Observed success so far
-        'Hong Kong',            // Was previously included in China's numbers
-        'Canada', 'Australia']; // These appear in the region selector
+      const topCountries = this.covidData.sort((a, b) => b.maxCases - a.maxCases).slice(0, 7).map(e => e.country);
+      const notableCountries = ['Jammu and Kashmir']; // These appear in the region selector
 
       // TODO: clean this logic up later
       // expected behavior: generate/overwrite selected locations if: 1. data loaded from URL, but no selected locations are loaded. 2. data refreshed (e.g. changing region)
@@ -486,7 +501,8 @@ window.app = new Vue({
         return '';
       }
 
-      let [m, d, y] = date.split('/');
+      let [d, m, y] = date.split('-');
+      m = new Date(m +'-1-01').getMonth()+1;
       return new Date(Date.UTC(2000 + (+y), m - 1, d)).toISOString().slice(0, 10);
     },
 
@@ -643,7 +659,7 @@ window.app = new Vue({
     regionType() {
       switch (this.selectedRegion) {
         case 'World':
-          return 'Countries';
+          return 'States';
         case 'Australia':
         case 'US':
           return 'States / Territories';
@@ -681,7 +697,7 @@ window.app = new Vue({
 
     layout() {
       return {
-        title: 'Trajectory of ' + this.selectedRegion + ' COVID-19 ' + this.selectedData + ' (' + this.formatDate(this.dates[this.day - 1]) + ')',
+        title: 'Trajectory of Indian States COVID-19 ' + this.selectedData + ' (' + this.formatDate(this.dates[this.day - 1]) + ')',
         showlegend: false,
         autorange: false,
         xaxis: {
@@ -899,7 +915,7 @@ window.app = new Vue({
 
     paused: true,
 
-    dataTypes: ['Confirmed Cases', 'Reported Deaths'],
+    dataTypes: ['Confirmed Cases', 'Deceased Cases'],
 
     selectedData: 'Confirmed Cases',
 
