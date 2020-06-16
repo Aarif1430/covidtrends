@@ -326,7 +326,10 @@ window.app = new Vue({
           url = 'https://api.covid19india.org/states_daily.json';
         } else if (selectedData == 'Deceased Cases') {
           url = 'https://api.covid19india.org/states_daily.json';
-        } else {
+        }else if (selectedData == 'Recovered Cases') {
+          url = 'https://api.covid19india.org/states_daily.json';
+        }  
+        else {
           return;
         }
         Plotly.d3.json(url, (data) => this.processData(data, selectedData, updateSelectedCountries));
@@ -915,7 +918,7 @@ window.app = new Vue({
 
     paused: true,
 
-    dataTypes: ['Confirmed Cases', 'Deceased Cases'],
+    dataTypes: ['Confirmed Cases', 'Deceased Cases', 'Recovered Cases'],
 
     selectedData: 'Confirmed Cases',
 
