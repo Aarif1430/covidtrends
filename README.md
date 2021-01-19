@@ -17,7 +17,7 @@ Notice that most countries follow a similar straight line path, indicating that 
 
 This interactive pulls data on COVID-19 provided by [Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19) and <a href="https://github.com/nytimes/covid-19-data">NYTimes</a>. Huge thanks to them for making this invaluable data source publicly available.
 
-Modified by [Aarif Malik] (https://epoweriotatheta.netlify.app/). Originally created by [Aatish Bhatia](https://aatishb.com/) in collaboration with [Henry Reich](https://www.youtube.com/user/minutephysics)
+Modified by [Aarif Malik](https://epoweriotatheta.netlify.app/). Originally created by [Aatish Bhatia](https://aatishb.com/) in collaboration with [Henry Reich](https://www.youtube.com/user/minutephysics)
 
 Created using [Plotly.js](https://plot.ly/javascript/) and [Vue.js](https://vuejs.org/)
 
